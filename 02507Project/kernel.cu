@@ -44,6 +44,34 @@ void hello(thrust::device_ptr<float> screen, thrust::device_ptr<float> triangle)
 
 }
 
+__device__
+float rasterize_pixel(float* triangle) {
+	unsigned int pixel_x = blockIdx.x*blockDim.x + threadIdx.x;
+	unsigned int pixel_y = blockIdx.y*blockDim.y + threadIdx.y;
+
+	float screen_x = (float)pixel_x + 0.5f;
+	float screen_y = (float)pixel_y + 0.5f;
+
+	float point[2] = {
+		(screen_x * 2 - N) / (N - 1),
+		-(screen_y * 2 - N) / (N - 1)
+	};
+
+	float A = 1.f / 2.f * (-triangle[3] * triangle[4] + triangle[1] * (-triangle[2] + triangle[4]) + triangle[0] * (triangle[3] - triangle[5]) + triangle[2] * triangle[5]);
+	float sign = A < 0 ? -1 : 1;
+	float s = (triangle[1] * triangle[4] - triangle[0] * triangle[5] + (triangle[5] - triangle[1]) * point[0] + (triangle[0] - triangle[4]) * point[1]) * sign;
+	float t = (triangle[0] * triangle[3] - triangle[1] * triangle[2] + (triangle[1] - triangle[3]) * point[0] + (triangle[2] - triangle[0]) * point[1]) * sign;
+
+	bool in_triangle = s >= 0 && t >= 0 && ((s + t) <= 2 * A * sign);
+
+	if (in_triangle) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 int main() {
 	thrust::device_vector<float> screen_device(N*N);
 	std::vector<float> triangle = {
@@ -53,10 +81,9 @@ int main() {
 	};
 	thrust::device_vector<float> triangle_device = triangle;
 
-	dim3 dimGrid(N / blocksize, N / blocksize);
-	dim3 dimBlock(blocksize, blocksize);
-
-	hello << <dimGrid, dimBlock >> >(screen_device.data(), triangle_device.data());
+	thrust::generate(screen_device.begin(), screen_device.end(), [=] __device__() {
+		return 3;
+	});
 
 	thrust::host_vector<float> screen = screen_device;
 
