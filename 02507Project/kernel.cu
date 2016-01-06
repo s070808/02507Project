@@ -10,14 +10,11 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
-using namespace std;
-using namespace thrust;
-
 const int N = 32;
 const int blocksize = 2;
 
 __global__
-void hello(device_ptr<float> screen, device_ptr<float> triangle) {
+void hello(thrust::device_ptr<float> screen, thrust::device_ptr<float> triangle) {
 	unsigned int pixel_x = blockIdx.x*blockDim.x + threadIdx.x;
 	unsigned int pixel_y = blockIdx.y*blockDim.y + threadIdx.y;
 
@@ -48,18 +45,20 @@ void hello(device_ptr<float> screen, device_ptr<float> triangle) {
 }
 
 int main() {
-	device_vector<float> screen(N*N);
-	vector<float> triangle = {
+	thrust::device_vector<float> screen_device(N*N);
+	std::vector<float> triangle = {
 		-0.6f, 1.0f,
 		-1.0f, -0.8f,
 		1.0f, -0.2f
 	};
-	device_vector<float> triangle_device = triangle;
+	thrust::device_vector<float> triangle_device = triangle;
 
 	dim3 dimGrid(N / blocksize, N / blocksize);
 	dim3 dimBlock(blocksize, blocksize);
 
-	hello << <dimGrid, dimBlock >> >(screen.data(), triangle_device.data());
+	hello << <dimGrid, dimBlock >> >(screen_device.data(), triangle_device.data());
+
+	thrust::host_vector<float> screen = screen_device;
 
 	std::cout << "+-";
 	for (size_t i = 0; i < N; i++)
