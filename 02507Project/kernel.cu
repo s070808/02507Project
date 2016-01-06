@@ -14,7 +14,7 @@ using namespace std;
 using namespace thrust;
 
 const int N = 32;
-const int blocksize = 16;
+const int blocksize = 2;
 
 __global__
 void hello(device_ptr<float> screen, device_ptr<float> triangle) {
@@ -26,7 +26,7 @@ void hello(device_ptr<float> screen, device_ptr<float> triangle) {
 
 	float point[2] = {
 		(screen_x * 2 - N) / (N - 1),
-		- (screen_y * 2 - N) / (N - 1)
+		-(screen_y * 2 - N) / (N - 1)
 	};
 
 	float A = 1.f / 2.f * (-triangle[3] * triangle[4] + triangle[1] * (-triangle[2] + triangle[4]) + triangle[0] * (triangle[3] - triangle[5]) + triangle[2] * triangle[5]);
