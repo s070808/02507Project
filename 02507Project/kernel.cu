@@ -1,4 +1,4 @@
-#include "cuda_runtime.h"
+﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
 #include <vector>
@@ -50,9 +50,9 @@ void hello(device_ptr<float> screen, device_ptr<float> triangle) {
 int main() {
 	device_vector<float> screen(N*N);
 	vector<float> triangle = {
-		-1.0, 1.0,
-		-1.0, -1.0,
-		1.0, 1.0
+		-0.6f, 1.0f,
+		-1.0f, -0.8f,
+		1.0f, -0.2f
 	};
 	device_vector<float> triangle_device = triangle;
 
@@ -61,12 +61,27 @@ int main() {
 
 	hello << <dimGrid, dimBlock >> >(screen.data(), triangle_device.data());
 
+	std::cout << "+-";
+	for (size_t i = 0; i < N; i++)
+	{
+		std::cout << "--";
+	}
+	std::cout << "+";
+	std::cout << std::endl;
 	for (size_t y = 0; y < N; y++) {
+		std::cout << "| ";
 		for (size_t x = 0; x < N; x++) {
-			std::cout << screen[y*N + x] << " ";
+			char c = screen[y*N + x] > 0 ? '#' : '.';
+			std::cout << c << " ";
 		}
+		std::cout << "|";
 		std::cout << std::endl;
 	}
-
+	std::cout << "+-";
+	for (size_t i = 0; i < N; i++)
+	{
+		std::cout << "--";
+	}
+	std::cout << "+";
 	std::cout << std::endl;
 }
