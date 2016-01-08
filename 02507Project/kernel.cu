@@ -9,8 +9,9 @@
 #include <thrust/functional.h>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
+#include <thrust/sequence.h>
 
-const int N = 32;
+__device__ const int N = 32;
 const int blocksize = 2;
 
 __global__
@@ -45,10 +46,7 @@ void hello(thrust::device_ptr<float> screen, thrust::device_ptr<float> triangle)
 }
 
 __device__
-float rasterize_pixel(float* triangle) {
-	unsigned int pixel_x = blockIdx.x*blockDim.x + threadIdx.x;
-	unsigned int pixel_y = blockIdx.y*blockDim.y + threadIdx.y;
-
+float rasterize_pixel(const unsigned int pixel_x, const unsigned int pixel_y, const thrust::device_ptr<float> triangle) {
 	float screen_x = (float)pixel_x + 0.5f;
 	float screen_y = (float)pixel_y + 0.5f;
 
@@ -65,27 +63,37 @@ float rasterize_pixel(float* triangle) {
 	bool in_triangle = s >= 0 && t >= 0 && ((s + t) <= 2 * A * sign);
 
 	if (in_triangle) {
-		return 1;
+		return 1.f;
 	}
 	else {
-		return 0;
+		return 0.f;
 	}
 }
 
 int main() {
-	thrust::device_vector<float> screen_device(N*N);
+	thrust::host_vector<float> screen(N*N);
+	thrust::device_vector<float> screen_d(N*N);
 	std::vector<float> triangle = {
 		-0.6f, 1.0f,
 		-1.0f, -0.8f,
 		1.0f, -0.2f
 	};
-	thrust::device_vector<float> triangle_device = triangle;
+	thrust::host_vector<unsigned int> indices(N*N);
+	thrust::device_vector<float> triangle_d = triangle;
+	thrust::device_ptr<float> triangle_data = triangle_d.data();
 
-	thrust::generate(screen_device.begin(), screen_device.end(), [=] __device__() {
-		return 3;
+	thrust::sequence(indices.begin(), indices.end());
+	thrust::device_vector<unsigned int> indices_d = indices;
+	std::cout << screen_d.size() << " " << indices_d.size() << std::endl;
+	thrust::transform(indices_d.begin(), indices_d.end(), screen_d.begin(), [=] __device__(unsigned int i) {
+		return rasterize_pixel(i%N, i/N, triangle_data);
 	});
 
-	thrust::host_vector<float> screen = screen_device;
+	std::cout << indices_d[12] << " " << indices_d[44] << std::endl;
+	std::cout << screen_d[12] << " " << screen_d[44] << std::endl;
+
+	screen = screen_d;
+
 
 	std::cout << "+-";
 	for (size_t i = 0; i < N; i++)
@@ -97,7 +105,7 @@ int main() {
 	for (size_t y = 0; y < N; y++) {
 		std::cout << "| ";
 		for (size_t x = 0; x < N; x++) {
-			char c = screen[y*N + x] > 0 ? '#' : '.';
+			float c = screen[y*N + x];// > 0 ? '#' : '.';
 			std::cout << c << " ";
 		}
 		std::cout << "|";
