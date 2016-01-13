@@ -93,6 +93,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <AdditionalCompilerOptions>
       </AdditionalCompilerOptions>
       <AdditionalOptions>--expt-extended-lambda %(AdditionalOptions)</AdditionalOptions>
+      <GenerateRelocatableDeviceCode>false</GenerateRelocatableDeviceCode>
     </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -162,6 +163,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="area_rasterizer.h" />
+    <ClInclude Include="index_to_clipspace_functor.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="triangle.h" />
   </ItemGroup>
@@ -170,7 +172,8 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <None Include="textures.vert" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="area_rasterizer.cpp" />
+    <ClCompile Include="area_rasterizer.cu" />
+    <ClCompile Include="index_to_clipspace_functor.cu" />
     <ClCompile Include="triangle.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
