@@ -4,6 +4,8 @@
 #include <vector>
 #include <iostream>
 #include <ctime>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #define GLM_FORCE_CUDA
 #include <glm/glm.hpp>
@@ -18,8 +20,14 @@
 #include <thrust/device_vector.h>
 #include <thrust/sequence.h>
 
-__device__ const int N = 1024;
+__device__ const int N = 512;
 const unsigned int WIDTH = N, HEIGHT = N;
+
+struct rasterize_data {
+	float s;
+	float t;
+	float u;
+};
 
 struct rasterize_functor {
 	const unsigned int width;
@@ -30,7 +38,7 @@ struct rasterize_functor {
 		: width(width), height(height), triangle(triangle) {}
 
 	__device__
-		float operator()(const unsigned int& i) const {
+		float3 operator()(const unsigned int& i) const {
 			unsigned int pixel_x = i % width;
 			unsigned int pixel_y = i / height;
 			float screen_x = (float)pixel_x + 0.5f;
@@ -47,18 +55,27 @@ struct rasterize_functor {
 			float t = (triangle[0] * triangle[3] - triangle[1] * triangle[2] + (triangle[1] - triangle[3]) * point[0] + (triangle[2] - triangle[0]) * point[1]) * sign;
 
 			bool in_triangle = s >= 0 && t >= 0 && ((s + t) <= 2 * A * sign);
+			float3 coords;
 
 			if (in_triangle) {
-				return 1.f;
+				s = s / (A*2);
+				t = t / (A*2);
+				coords.x = s;
+				coords.y = t;
+				coords.z = 1.0f - s - t;
 			}
 			else {
-				return 0.f;
+				coords.x = 0.0f;
+				coords.y = 0.0f;
+				coords.z = 0.0f;
 			}
+
+			return coords;
 		}
 };
 
 void generate_image(unsigned char* image) {
-	thrust::device_vector<float> screen_d(WIDTH*HEIGHT);
+	thrust::device_vector<float3> screen_d(WIDTH*HEIGHT);
 
 	// Initialize a triangle from three points
 	std::vector<float> triangle = {
@@ -74,13 +91,13 @@ void generate_image(unsigned char* image) {
 	thrust::sequence(indices.begin(), indices.end());
 	thrust::transform(indices.begin(), indices.end(), screen_d.begin(), rasterize_functor(WIDTH, HEIGHT, triangle_data));
 
-	thrust::host_vector<float> screen = screen_d;
+	thrust::host_vector<float3> screen = screen_d;
 	
 	for (int i = 0; i < screen.size(); i++) {
-		float value = screen[i];
-		image[i*3] = value > 0.0f ? 255 : 0;
-		image[i*3 + 1] = value > 0.0f ? 255 : 0;
-		image[i*3 + 2] = value > 0.0f ? 255 : 0;
+		float3 value = screen[i];
+		image[i * 3 + 0] = value.x * 255;
+		image[i * 3 + 1] = value.y * 255;
+		image[i * 3 + 2] = value.z * 255;
 	}
 }
 
