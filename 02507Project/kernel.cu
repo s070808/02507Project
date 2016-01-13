@@ -20,14 +20,11 @@
 #include <thrust/device_vector.h>
 #include <thrust/sequence.h>
 
+#include "triangle.h"
+#include "area_rasterizer.h"
+
 __device__ const int N = 512;
 const unsigned int WIDTH = N, HEIGHT = N;
-
-struct rasterize_data {
-	float s;
-	float t;
-	float u;
-};
 
 struct rasterize_functor {
 	const unsigned int width;
@@ -101,12 +98,36 @@ void generate_image(unsigned char* image) {
 	}
 }
 
+void generate_image2(unsigned char* image) {
+	thrust::device_vector<float3> screen_d(WIDTH*HEIGHT);
+	thrust::device_vector<unsigned int> indices(WIDTH*HEIGHT);
+	thrust::sequence(indices.begin(), indices.end());
+
+	triangle t(glm::vec2(1.0f, 0.25f), glm::vec2(0.66f, 1.0f), glm::vec2(0.0f, 0.33f));
+	thrust::transform(indices.begin(), indices.end(), screen_d.begin(), rasterize_functor(WIDTH, HEIGHT, triangle_data));
+
+	thrust::host_vector<float3> screen = screen_d;
+
+	for (int i = 0; i < screen.size(); i++) {
+		float3 value = screen[i];
+		image[i * 3 + 0] = value.x * 255;
+		image[i * 3 + 1] = value.y * 255;
+		image[i * 3 + 2] = value.z * 255;
+	}
+}
+
 // Function prototypes
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
 // Window dimensions
 
 int main() {
+	triangle t(glm::vec2(1.0f, 0.25f), glm::vec2(0.66f, 1.0f), glm::vec2(0.0f, 0.33f));
+	area_rasterizer rasterizer(t, 1.0f/t.signed_area());
+	auto bc = rasterizer(glm::vec2(1.0f, 0.5f));
+	std::cout << t.signed_area() << std::endl;
+	std::cout << bc.x << " " << bc.y << " " << bc.z << std::endl;
+
 	// Init GLFW
 	glfwInit();
 	// Set all the required options for GLFW
@@ -191,17 +212,17 @@ int main() {
 	clock_t begin, end;
 	double elapsed_secs;
 
-	begin = std::clock();
-	generate_image(image);
-	end = std::clock();
-	elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	std::cout << "First run: " << elapsed_secs*1000.0 << "ms" << std::endl;
+	//begin = std::clock();
+	//generate_image(image);
+	//end = std::clock();
+	//elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	//std::cout << "First run: " << elapsed_secs*1000.0 << "ms" << std::endl;
 
-	begin = std::clock();
-	generate_image(image);
-	end = std::clock();
-	elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	std::cout << "Second run: " << elapsed_secs*1000.0 << "ms" << std::endl;
+	//begin = std::clock();
+	//generate_image(image);
+	//end = std::clock();
+	//elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	//std::cout << "Second run: " << elapsed_secs*1000.0 << "ms" << std::endl;
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widths, heights, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 	//glGenerateMipmap(GL_TEXTURE_2D);

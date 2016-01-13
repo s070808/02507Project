@@ -161,11 +161,17 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <CudaCompile Include="kernel.cu" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="area_rasterizer.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="triangle.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="textures.frag" />
     <None Include="textures.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="area_rasterizer.cpp" />
+    <ClCompile Include="triangle.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
