@@ -174,7 +174,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClCompile Include="area_rasterizer.cu" />
     <ClCompile Include="index_to_clipspace_functor.cu" />
-    <ClCompile Include="triangle.cpp" />
+    <ClCompile Include="triangle.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
