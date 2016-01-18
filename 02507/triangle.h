@@ -19,11 +19,6 @@ namespace kp {
 			: a(a), b(b), c(c) {}
 
 		__device__ __host__ float signed_area() const {
-			//return (
-			//	get<0>(a) * (get<1>(b) -get<1>(c)) +
-			//	get<0>(b) * (get<1>(c) -get<1>(a)) +
-			//	get<0>(c) * (get<1>(a) -get<1>(b))
-			//	) * 0.5f;
 			return (
 				x(a) * (y(b) - y(c)) +
 				x(b) * (y(c) - y(a)) +

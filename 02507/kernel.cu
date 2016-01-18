@@ -13,9 +13,6 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#define GLM_FORCE_CUDA
-#include <glm/glm.hpp>
-
 #define GLEW_STATIC
 #include <GL/glew.h>
 
@@ -54,16 +51,12 @@ __host__ void generate_image2(unsigned char* image) {
 	device_vector<int> indices(size);
 	sequence(indices.begin(), indices.end());
 
-	for (unsigned int i = 0; i < 50; i++) {
-		std::cout << indices[i] << " ";
-	}
-
 	auto t_begin = std::clock();
 
 	const kp::triangle t(make_tuple(-1.0f, -0.75f), make_tuple(0.66f, -1.0f), make_tuple(0.0f, 1.0f));
 	const kp::index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
 	const kp::area_rasterizer rasterizer(t, 1.0f / t.signed_area());
-	std::cout << t.signed_area() << std::endl;
+
 	transform(indices.begin(), indices.end(),
 		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
 		rasterize_functor(index_to_clipspace, rasterizer));
