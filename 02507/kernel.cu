@@ -26,38 +26,53 @@
 #include "area_rasterizer.h"
 #include "index_to_clipspace_functor.h"
 
+using namespace thrust;
 
 const int N = 512;
 const int WIDTH = N, HEIGHT = N;
 
-struct test_functor {
+struct rasterize_functor {
+	const kp::index_to_clipspace_functor index_to_clipspace;
+	const kp::area_rasterizer rasterizer;
+
 	__host__ __device__
-	thrust::tuple<float, float, float> operator()(int i) {
-		return thrust::make_tuple(1.0f, 1.0f, 0.0f);
-	}
+		rasterize_functor(const kp::index_to_clipspace_functor index_to_clipspace, const kp::area_rasterizer rasterizer)
+		: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
+
+	__host__ __device__
+		tuple<float, float, float> operator()(int i) {
+			return rasterizer(index_to_clipspace(i));
+		}
 };
 
 __host__ void generate_image2(unsigned char* image) {
 	auto size = WIDTH * HEIGHT;
-	thrust::device_vector<float> screen_x(size), screen_y(size), screen_z(size);
-	thrust::device_vector<int> indices(size);
-	thrust::sequence(indices.begin(), indices.end());
+	device_vector<float> screen_x(size), screen_y(size), screen_z(size);
+	counting_iterator<int> begin(0);
+	counting_iterator<int> end(size);
+	device_vector<int> indices(size);
+	sequence(indices.begin(), indices.end());
 
-	auto begin = std::clock();
+	for (unsigned int i = 0; i < 50; i++) {
+		std::cout << indices[i] << " ";
+	}
 
-	//const triangle t(make_float2(1.0f, 0.25f), make_float2(0.66f, 1.0f), make_float2(0.0f, 0.33f));
-	//const index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
-	//const area_rasterizer rasterizer(t, t.signed_area());
-	thrust::transform(indices.begin(), indices.end(),
+	auto t_begin = std::clock();
+
+	const kp::triangle t(make_tuple(1.0f, 0.75f), make_tuple(0.66f, 1.0f), make_tuple(0.0f, 0.33f));
+	const kp::index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
+	const kp::area_rasterizer rasterizer(t, 1.0f / t.signed_area());
+	std::cout << t.signed_area() << std::endl;
+	transform(indices.begin(), indices.end(),
 		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
-		test_functor());
+		rasterize_functor(index_to_clipspace, rasterizer));
 
-	auto end = std::clock();
-	auto elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	auto t_end = std::clock();
+	auto elapsed_secs = double(t_end - t_begin) / CLOCKS_PER_SEC;
 	std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms" << std::endl;
 
-	thrust::host_vector<float> host_x(size), host_y(size), host_z(size);
-	thrust::copy(
+	host_vector<float> host_x(size), host_y(size), host_z(size);
+	copy(
 		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
 		make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end())),
 		make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin()))
