@@ -11,11 +11,11 @@ namespace kp {
 	class triangle
 	{
 	public:
-		const Float2 a;
-		const Float2 b;
-		const Float2 c;
+		const float2 a;
+		const float2 b;
+		const float2 c;
 
-		__device__ __host__ triangle(const Float2 a, const Float2 b, const Float2 c)
+		__device__ __host__ triangle(const float2 a, const float2 b, const float2 c)
 			: a(a), b(b), c(c) {}
 
 		__device__ __host__ float signed_area() const {
@@ -26,4 +26,12 @@ namespace kp {
 				) * 0.5f;
 		}
 	};
+
+	__device__ __host__ float signed_area(const float2 a, const float2 b, const float2 c) {
+		return (
+			x(a) * (y(b) - y(c)) +
+			x(b) * (y(c) - y(a)) +
+			x(c) * (y(a) - y(b))
+			) * 0.5f;
+	}
 }

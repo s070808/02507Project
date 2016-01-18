@@ -21,7 +21,7 @@
 
 #include "matrix.h"
 #include "triangle.h"
-#include "area_rasterizer.h"
+#include "multi_rasterizer.h"
 #include "index_to_clipspace_functor.h"
 
 using namespace thrust;
@@ -31,14 +31,14 @@ const int WIDTH = N, HEIGHT = N;
 
 struct rasterize_functor {
 	const kp::index_to_clipspace_functor index_to_clipspace;
-	const kp::area_rasterizer rasterizer;
+	const kp::multi_rasterizer rasterizer;
 
 	__host__ __device__
-		rasterize_functor(const kp::index_to_clipspace_functor index_to_clipspace, const kp::area_rasterizer rasterizer)
+		rasterize_functor(const kp::index_to_clipspace_functor index_to_clipspace, const kp::multi_rasterizer rasterizer)
 		: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
 
 	__host__ __device__
-		kp::Float3 operator()(int i) {
+		kp::float3 operator()(int i) {
 			return rasterizer(index_to_clipspace(i));
 		}
 };
@@ -53,9 +53,29 @@ __host__ void generate_image2(unsigned char* image) {
 
 	auto t_begin = std::clock();
 
-	const kp::triangle t(make_tuple(-1.0f, -0.75f), make_tuple(0.66f, -1.0f), make_tuple(0.0f, 1.0f));
+	std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f };
+	std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f };
+
+	// Indices for corners A, B and C of triangles to be rasterized
+	std::vector<unsigned int> std_triangles_a{ 0, 2, 0 };
+	std::vector<unsigned int> std_triangles_b{ 1, 1, 2 };
+	std::vector<unsigned int> std_triangles_c{ 2, 3, 4 };
+
+	// Copy vertices and triangles to GPU
+	device_vector<float> vertices_x = std_vertices_x;
+	device_vector<float> vertices_y = std_vertices_y;
+	device_vector<unsigned int> triangles_a = std_triangles_a;
+	device_vector<unsigned int> triangles_b = std_triangles_b;
+	device_vector<unsigned int> triangles_c = std_triangles_c;
+
 	const kp::index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
-	const kp::area_rasterizer rasterizer(t, 1.0f / t.signed_area());
+	const kp::multi_rasterizer rasterizer(
+		triangles_a.size(),
+		vertices_x.data(),
+		vertices_y.data(),
+		triangles_a.data(),
+		triangles_b.data(),
+		triangles_c.data());
 
 	transform(indices.begin(), indices.end(),
 		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
@@ -167,6 +187,9 @@ int main() {
 	int heights = HEIGHT;
 	unsigned char* image = new unsigned char[widths*heights * 3];
 
+	generate_image2(image);
+	generate_image2(image);
+	generate_image2(image);
 	generate_image2(image);
 	generate_image2(image);
 
