@@ -27,30 +27,46 @@
 #include "index_to_clipspace_functor.h"
 
 
-__device__ const int N = 512;
+const int N = 512;
 const int WIDTH = N, HEIGHT = N;
 
+struct test_functor {
+	__host__ __device__
+	thrust::tuple<float, float, float> operator()(int i) {
+		return thrust::make_tuple(1.0f, 1.0f, 0.0f);
+	}
+};
 
 __host__ void generate_image2(unsigned char* image) {
-	thrust::device_vector<float3> screen_d(WIDTH*HEIGHT);
-	thrust::device_vector<int> indices(WIDTH*HEIGHT);
-	//thrust::sequence(indices.begin(), indices.end());
+	auto size = WIDTH * HEIGHT;
+	thrust::device_vector<float> screen_x(size), screen_y(size), screen_z(size);
+	thrust::device_vector<int> indices(size);
+	thrust::sequence(indices.begin(), indices.end());
 
-	const triangle t(make_float2(1.0f, 0.25f), make_float2(0.66f, 1.0f), make_float2(0.0f, 0.33f));
-	const index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
-	const area_rasterizer rasterizer(t, t.signed_area());
-	thrust::transform(indices.begin(), indices.end(), screen_d.begin(), [=] __device__(int index) {
-		return rasterizer(index_to_clipspace(index));
-	});
+	auto begin = std::clock();
 
-	thrust::host_vector<float3> screen(WIDTH*HEIGHT);
-	// thrust::copy(screen_d.begin(), screen_d.end(), screen.begin());
+	//const triangle t(make_float2(1.0f, 0.25f), make_float2(0.66f, 1.0f), make_float2(0.0f, 0.33f));
+	//const index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
+	//const area_rasterizer rasterizer(t, t.signed_area());
+	thrust::transform(indices.begin(), indices.end(),
+		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
+		test_functor());
 
-	for (unsigned int i = 0; i < screen.size(); i++) {
-		float3 value = screen[i];
-		image[i * 3 + 0] = value.x * 255;
-		image[i * 3 + 1] = value.y * 255;
-		image[i * 3 + 2] = value.z * 255;
+	auto end = std::clock();
+	auto elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms" << std::endl;
+
+	thrust::host_vector<float> host_x(size), host_y(size), host_z(size);
+	thrust::copy(
+		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
+		make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end())),
+		make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin()))
+		);
+
+	for (unsigned int i = 0; i < size; i++) {
+		image[i * 3 + 0] = host_x[i] * 255;
+		image[i * 3 + 1] = host_y[i] * 255;
+		image[i * 3 + 2] = host_z[i] * 255;
 	}
 }
 
@@ -141,20 +157,9 @@ int main() {
 	int widths = WIDTH;
 	int heights = HEIGHT;
 	unsigned char* image = new unsigned char[widths*heights * 3];
-	clock_t begin, end;
-	double elapsed_secs;
 
-	begin = std::clock();
 	generate_image2(image);
-	end = std::clock();
-	elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	std::cout << "First run: " << elapsed_secs*1000.0 << "ms" << std::endl;
-
-	begin = std::clock();
 	generate_image2(image);
-	end = std::clock();
-	elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-	std::cout << "Second run: " << elapsed_secs*1000.0 << "ms" << std::endl;
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widths, heights, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 	//glGenerateMipmap(GL_TEXTURE_2D);
