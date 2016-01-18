@@ -26,76 +26,81 @@
 
 using namespace thrust;
 
-const int N = 1024;
+const int N = 512;
 const int WIDTH = N, HEIGHT = N;
 
-struct rasterize_functor {
-	const kp::index_to_clipspace_functor index_to_clipspace;
-	const kp::multi_rasterizer rasterizer;
+namespace kp {
+	struct rasterize_functor {
+		const kp::index_to_clipspace_functor index_to_clipspace;
+		const kp::multi_rasterizer rasterizer;
 
-	__host__ __device__
-		rasterize_functor(const kp::index_to_clipspace_functor index_to_clipspace, const kp::multi_rasterizer rasterizer)
-		: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
+		__host__ __device__ rasterize_functor(const kp::index_to_clipspace_functor index_to_clipspace, const kp::multi_rasterizer rasterizer)
+			: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
 
-	__host__ __device__
-		kp::float3 operator()(int i) {
+		__host__ __device__ tuple<float, float, float, uint> operator()(int i) {
 			return rasterizer(index_to_clipspace(i));
 		}
-};
+	};
 
-__host__ void generate_image2(unsigned char* image) {
-	auto size = WIDTH * HEIGHT;
-	device_vector<float> screen_x(size), screen_y(size), screen_z(size);
-	counting_iterator<int> begin(0);
-	counting_iterator<int> end(size);
-	device_vector<int> indices(size);
-	sequence(indices.begin(), indices.end());
+	__host__ void generate_image2(unsigned char* image) {
+		auto size = WIDTH * HEIGHT;
 
-	auto t_begin = std::clock();
+		// To be used later for optimization
+		counting_iterator<int> begin(0);
+		counting_iterator<int> end(size);
 
-	std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f, 0.0f, -1.0f, 1.0f };
-	std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f, -1.0f, 0.0f, 0.0f };
+		device_vector<float> screen_x(size), screen_y(size), screen_z(size);
+		device_vector<uint> screen_triangle(size);
+		device_vector<int> indices(size);
+		sequence(indices.begin(), indices.end());
 
-	// Indices for corners A, B and C of triangles to be rasterized
-	std::vector<unsigned int> std_triangles_a{ 5, 0, 2, 0 };
-	std::vector<unsigned int> std_triangles_b{ 7, 1, 1, 2 };
-	std::vector<unsigned int> std_triangles_c{ 6, 2, 3, 4 };
+		auto t_begin = std::clock();
 
-	// Copy vertices and triangles to GPU
-	device_vector<float> vertices_x = std_vertices_x;
-	device_vector<float> vertices_y = std_vertices_y;
-	device_vector<unsigned int> triangles_a = std_triangles_a;
-	device_vector<unsigned int> triangles_b = std_triangles_b;
-	device_vector<unsigned int> triangles_c = std_triangles_c;
+		std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f, 0.0f, -1.0f, 1.0f };
+		std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f, -1.0f, 0.0f, 0.0f };
 
-	const kp::index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
-	const kp::multi_rasterizer rasterizer(
-		triangles_a.size(),
-		vertices_x.data(),
-		vertices_y.data(),
-		triangles_a.data(),
-		triangles_b.data(),
-		triangles_c.data());
+		// Indices for corners A, B and C of triangles to be rasterized
+		std::vector<unsigned int> std_triangles_a{ 5, 0, 2, 0 };
+		std::vector<unsigned int> std_triangles_b{ 7, 1, 1, 2 };
+		std::vector<unsigned int> std_triangles_c{ 6, 2, 3, 4 };
 
-	transform(indices.begin(), indices.end(),
-		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
-		rasterize_functor(index_to_clipspace, rasterizer));
+		// Copy vertices and triangles to GPU
+		device_vector<float> vertices_x = std_vertices_x;
+		device_vector<float> vertices_y = std_vertices_y;
+		device_vector<unsigned int> triangles_a = std_triangles_a;
+		device_vector<unsigned int> triangles_b = std_triangles_b;
+		device_vector<unsigned int> triangles_c = std_triangles_c;
 
-	auto t_end = std::clock();
-	auto elapsed_secs = double(t_end - t_begin) / CLOCKS_PER_SEC;
-	std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms" << std::endl;
+		const kp::index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
+		const kp::multi_rasterizer rasterizer(
+			triangles_a.size(),
+			vertices_x.data(),
+			vertices_y.data(),
+			triangles_a.data(),
+			triangles_b.data(),
+			triangles_c.data());
 
-	host_vector<float> host_x(size), host_y(size), host_z(size);
-	copy(
-		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
-		make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end())),
-		make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin()))
-		);
+		transform(indices.begin(), indices.end(),
+			make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangle.begin())),
+			rasterize_functor(index_to_clipspace, rasterizer));
 
-	for (unsigned int i = 0; i < size; i++) {
-		image[i * 3 + 0] = host_x[i] * 255;
-		image[i * 3 + 1] = host_y[i] * 255;
-		image[i * 3 + 2] = host_z[i] * 255;
+		auto t_end = std::clock();
+		auto elapsed_secs = double(t_end - t_begin) / CLOCKS_PER_SEC;
+		std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms  (" << (t_end - t_begin) << " clocks)" << std::endl;
+
+		host_vector<float> host_x(size), host_y(size), host_z(size);
+		host_vector<uint> host_triangle(size);
+		copy(
+			make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangle.begin())),
+			make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end(), screen_triangle.end())),
+			make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin(), host_triangle.begin()))
+			);
+
+		for (int i = 0; i < size; i++) {
+			image[i * 3 + 0] = (unsigned char)(screen_triangle[i] * 63);
+			image[i * 3 + 1] = (unsigned char)(screen_triangle[i] * 63);
+			image[i * 3 + 2] = (unsigned char)(screen_triangle[i] * 63);
+		}
 	}
 }
 
@@ -187,11 +192,11 @@ int main() {
 	int heights = HEIGHT;
 	unsigned char* image = new unsigned char[widths*heights * 3];
 
-	generate_image2(image);
-	generate_image2(image);
-	generate_image2(image);
-	generate_image2(image);
-	generate_image2(image);
+	kp::generate_image2(image);
+	//kp::generate_image2(image);
+	//kp::generate_image2(image);
+	//kp::generate_image2(image);
+	//kp::generate_image2(image);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widths, heights, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 	//glGenerateMipmap(GL_TEXTURE_2D);

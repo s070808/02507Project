@@ -2,6 +2,8 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 
+#include <thrust/tuple.h>
+
 #include "matrix.h"
 #include "triangle.h"
 
