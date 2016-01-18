@@ -2,6 +2,7 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 
+#include "matrix.h"
 #include "triangle.h"
 
 #pragma once
@@ -16,7 +17,7 @@ namespace kp {
 		__device__ __host__ area_rasterizer(const triangle triangle, const float inverse_area)
 			: _inverse_area(inverse_area), _triangle(triangle) {}
 
-		__device__ __host__ tuple<float, float, float> operator()(const tuple<float, float> position) const {
+		__device__ __host__ Float3 operator()(const Float2 position) const {
 			const triangle triangleA(_triangle.c, position, _triangle.b);
 			const triangle triangleB(_triangle.a, position, _triangle.c);
 			const triangle triangleC(_triangle.b, position, _triangle.a);

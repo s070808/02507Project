@@ -165,6 +165,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="area_rasterizer.h" />
     <ClInclude Include="index_to_clipspace_functor.h" />
+    <ClInclude Include="matrix.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="triangle.h" />
     <ClInclude Include="tuple_helpers.h" />

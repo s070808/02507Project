@@ -22,6 +22,7 @@
 #include <GLFW/glfw3.h>
 #include "Shader.h"
 
+#include "matrix.h"
 #include "triangle.h"
 #include "area_rasterizer.h"
 #include "index_to_clipspace_functor.h"
@@ -40,7 +41,7 @@ struct rasterize_functor {
 		: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
 
 	__host__ __device__
-		tuple<float, float, float> operator()(int i) {
+		kp::Float3 operator()(int i) {
 			return rasterizer(index_to_clipspace(i));
 		}
 };
@@ -59,7 +60,7 @@ __host__ void generate_image2(unsigned char* image) {
 
 	auto t_begin = std::clock();
 
-	const kp::triangle t(make_tuple(1.0f, 0.75f), make_tuple(0.66f, 1.0f), make_tuple(0.0f, 0.33f));
+	const kp::triangle t(make_tuple(-1.0f, -0.75f), make_tuple(0.66f, -1.0f), make_tuple(0.0f, 1.0f));
 	const kp::index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
 	const kp::area_rasterizer rasterizer(t, 1.0f / t.signed_area());
 	std::cout << t.signed_area() << std::endl;
