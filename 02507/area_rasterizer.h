@@ -22,7 +22,7 @@ namespace kp {
 			const float areaB = signed_area(_triangle.a, position, _triangle.c);
 			const float areaC = signed_area(_triangle.b, position, _triangle.a);
 
-			if (areaA < 0.f || areaB < 0.f || areaC < 0.f) {
+			if (areaA < -(10e-6f) || areaB < -(10e-6f) || areaC < -(10e-6f)) {
 				return make_tuple(0.f, 0.f, 0.f);
 			}
 

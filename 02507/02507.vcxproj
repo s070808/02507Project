@@ -139,6 +139,9 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <Command>echo copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"
 copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
+    <CudaCompile>
+      <CodeGeneration>compute_30,sm_30</CodeGeneration>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -172,12 +175,16 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="matrix.h" />
     <ClInclude Include="multi_rasterizer.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="triangle.h" />
     <ClInclude Include="tuple_helpers.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="textures.frag" />
     <None Include="textures.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="tiny_obj_loader.cc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

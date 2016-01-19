@@ -38,10 +38,10 @@ namespace kp {
 			_triangles_b(triangles_b),
 			_triangles_c(triangles_c){}
 
-		__host__ __device__ tuple<float, float, float, int> operator()(const float2 position) const {
+		__host__ __device__ tuple<float, float, float, float, int> operator()(const float2 position) const {
 			// Use initial depth of less than -1.0f, as that is the maximum allowed.
 			float maxDepth = -1.1f;
-			auto result = make_tuple(0.0f, 0.0f, 0.0f, -1);
+			auto result = make_tuple(0.0f, 0.0f, 0.0f, -1.0f, -1);
 
 			for (unsigned int i = 0; i < _n_triangles; i++) {
 				// Retrieve indices of triangle vertices
@@ -58,7 +58,7 @@ namespace kp {
 				area_rasterizer rasterize(t, 1.0f / t.signed_area());
 				float3 barycentric = rasterize(position);
 
-				if (x(barycentric) + y(barycentric) + z(barycentric) > 0.0001f) {
+				if (x(barycentric) + y(barycentric) + z(barycentric) > 10e-6f) {
 					// We are inside triangle
 					// Retrieve Z components of triangle vertices
 					auto z_a = _vertices_z[idx_a];
@@ -71,7 +71,7 @@ namespace kp {
 					// Perform depth test
 					if (depth > maxDepth) {
 						maxDepth = depth;
-						result = make_tuple(x(barycentric), y(barycentric), z(barycentric), i);
+						result = make_tuple(x(barycentric), y(barycentric), z(barycentric), depth, i);
 					}
 				}
 			}

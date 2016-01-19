@@ -10,6 +10,8 @@
 #include <vector>
 #include <iostream>
 #include <ctime>
+#include <cmath>
+#include <algorithm>
 #define _USE_MATH_DEFINES
 #include <math.h>
 
@@ -18,6 +20,8 @@
 
 #include <GLFW/glfw3.h>
 #include "Shader.h"
+
+#include "tiny_obj_loader.h"
 
 #include "matrix.h"
 #include "triangle.h"
@@ -38,15 +42,97 @@ struct rasterize_functor {
 		: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
 
 	__host__ __device__
-		tuple<float, float, float, int> operator()(int i) {
+		tuple<float, float, float, float, int> operator()(int i) {
 			return rasterizer(index_to_clipspace(i));
 		}
 };
 
-__host__ void generate_image2(unsigned char* image) {
+struct std_scene {
+	std::vector<float> vertices_x;
+	std::vector<float> vertices_y;
+	std::vector<float> vertices_z;
+	std::vector<unsigned int> triangles_a;
+	std::vector<unsigned int> triangles_b;
+	std::vector<unsigned int> triangles_c;
+};
+
+float quadf(float value, float max) {
+	return std::cosf(((value - (max / 2)) / (max / 2)) * M_PI) / 2 + 0.5f;
+}
+
+std_scene generate_cosine_quad() {
+	std_scene scene;
+
+	int imax = 91;
+	int jmax = 91;
+
+	for (int i = 0; i < imax; i++) {
+		for (int j = 0; j < jmax; j++) {
+			scene.vertices_x.push_back(((float)j / (jmax - 1)) * 2.f - 1.f);
+			scene.vertices_y.push_back(((float)i / (imax - 1)) * (-2.f) + 1.f);
+			scene.vertices_z.push_back(quadf(i, imax) * quadf(j, jmax));
+		}
+	}
+
+	for (int i = 0; i < imax - 1; i++) {
+		for (int j = 0; j < jmax - 1; j++) {
+			scene.triangles_a.push_back(i*jmax + j);
+			scene.triangles_b.push_back((i + 1)*imax + j);
+			scene.triangles_c.push_back(i*imax + j + 1);
+
+			scene.triangles_a.push_back((i + 1)*jmax + (j + 1));
+			scene.triangles_b.push_back(i*imax + j + 1);
+			scene.triangles_c.push_back((i + 1)*imax + j);
+		}
+	}
+
+	return scene;
+}
+
+std_scene load_scene() {
+	std::string inputfile = "scenes/cube.obj";
+	std::string err;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+
+	if (!tinyobj::LoadObj(shapes, materials, err, inputfile.c_str())) {
+		std::cerr << err << std::endl;
+		exit(1);
+	}
+
+	std::cout << "# of shapes    : " << shapes.size() << std::endl;
+	std::cout << "# of materials : " << materials.size() << std::endl;
+
+	std_scene scene;
+	auto max_vertex_value = *std::max_element(shapes[0].mesh.positions.begin(), shapes[0].mesh.positions.end());
+	auto vertex_factor = 1.f / max_vertex_value;
+	std::cout << "Max vertex value :" << max_vertex_value << std::endl;
+
+	for (size_t i = 0; i < shapes.size(); i++) {
+		auto shape = shapes[i];
+		auto offset = scene.triangles_a.size();
+
+		for (size_t j = 0; j < shape.mesh.indices.size(); j += 3) {
+			scene.triangles_a.push_back(offset + shape.mesh.indices[j + 0]);
+			scene.triangles_b.push_back(offset + shape.mesh.indices[j + 1]);
+			scene.triangles_c.push_back(offset + shape.mesh.indices[j + 2]);
+		}
+
+		for (size_t j = 0; j < shape.mesh.positions.size(); j += 3) {
+			scene.vertices_x.push_back(shape.mesh.positions[j + 0] / 3/* * vertex_factor - 0.5f*/);
+			scene.vertices_y.push_back(shape.mesh.positions[j + 1] / 3/* * vertex_factor - 0.5f*/);
+			scene.vertices_z.push_back(shape.mesh.positions[j + 2] / 3/* * vertex_factor - 0.5f*/);
+		}
+	}
+
+	return scene;
+}
+
+void generate_image2(unsigned char* image, std_scene scene) {
+	std::cout << "Number of triangles: " << scene.triangles_a.size() << std::endl;
 	auto size = WIDTH * HEIGHT;
-	device_vector<float> screen_x(size), screen_y(size), screen_z(size);
-	device_vector<int> screen_triangles(size); // Allows for up to 256 triangles
+	device_vector<float> screen_x(size), screen_y(size), screen_z(size), screen_depth(size);
+	device_vector<int> screen_triangles(size);
 	counting_iterator<int> begin(0);
 	counting_iterator<int> end(size);
 	device_vector<int> indices(size);
@@ -54,22 +140,30 @@ __host__ void generate_image2(unsigned char* image) {
 
 	auto t_begin = std::clock();
 
-	std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f, 0.0f, -1.0f, 1.0f };
-	std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f, -1.0f, 0.0f, 0.0f };
-	std::vector<float> std_vertices_z{ 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f};
+	//std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f, 0.0f, -1.0f, 1.0f };
+	//std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f, -1.0f, 0.0f, 0.0f };
+	//std::vector<float> std_vertices_z{ 0.5f, 0.5f, -0.25f, 0.5f, -0.75f, -0.75f, -0.55f, 1.0f };
 
-	// Indices for corners A, B and C of triangles to be rasterized
-	std::vector<unsigned int> std_triangles_a{ 5, 0, 2, 0 };
-	std::vector<unsigned int> std_triangles_b{ 7, 1, 1, 2 };
-	std::vector<unsigned int> std_triangles_c{ 6, 2, 3, 4 };
+	//// Indices for corners A, B and C of triangles to be rasterized
+	//std::vector<unsigned int> std_triangles_a{ 5, 0, 2, 0 };
+	//std::vector<unsigned int> std_triangles_b{ 7, 1, 1, 2 };
+	//std::vector<unsigned int> std_triangles_c{ 6, 2, 3, 4 };
 
 	// Copy vertices and triangles to GPU
-	device_vector<float> vertices_x = std_vertices_x;
-	device_vector<float> vertices_y = std_vertices_y;
-	device_vector<float> vertices_z = std_vertices_z;
-	device_vector<unsigned int> triangles_a = std_triangles_a;
-	device_vector<unsigned int> triangles_b = std_triangles_b;
-	device_vector<unsigned int> triangles_c = std_triangles_c;
+	device_vector<float> vertices_x = scene.vertices_x;
+	device_vector<float> vertices_y = scene.vertices_y;
+	device_vector<float> vertices_z = scene.vertices_z;
+	device_vector<unsigned int> triangles_a = scene.triangles_a;
+	device_vector<unsigned int> triangles_b = scene.triangles_b;
+	device_vector<unsigned int> triangles_c = scene.triangles_c;
+
+	//for (size_t i = 0; i < scene.vertices_x.size(); i++) {
+	//	std::cout << "x:\t" << scene.vertices_x[i] << "y:\t" << scene.vertices_y[i] << "z:\t" << scene.vertices_z[i] << std::endl;
+	//}
+
+	//for (size_t i = 0; i < scene.triangles_a.size(); i++) {
+	//	std::cout << "a:\t" << scene.triangles_a[i] << "b:\t" << scene.triangles_b[i] << "c:\t" << scene.triangles_c[i] << std::endl;
+	//}
 
 	const kp::index_to_clipspace_functor index_to_clipspace(WIDTH, HEIGHT);
 	const kp::multi_rasterizer rasterizer(
@@ -81,28 +175,32 @@ __host__ void generate_image2(unsigned char* image) {
 		triangles_b.data(),
 		triangles_c.data());
 
-	transform(indices.begin(), indices.end(),
-		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangles.begin())),
-		rasterize_functor(index_to_clipspace, rasterizer));
+	auto screen_begin = make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_depth.begin(), screen_triangles.begin());
+	auto screen_end = make_tuple(screen_x.end(), screen_y.end(), screen_z.end(), screen_depth.end(), screen_triangles.end());
+
+	transform(indices.begin(), indices.end(), make_zip_iterator(screen_begin), rasterize_functor(index_to_clipspace, rasterizer));
+	cudaDeviceSynchronize();
 
 	auto t_end = std::clock();
 	auto elapsed_secs = double(t_end - t_begin) / CLOCKS_PER_SEC;
 	std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms" << std::endl;
 
-	host_vector<float> host_x(size), host_y(size), host_z(size);
+	host_vector<float> host_x(size), host_y(size), host_z(size), host_depth(size);
 	host_vector<int> host_triangles(size);
-	copy(
-		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangles.begin())),
-		make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end(), screen_triangles.end())),
-		make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin(), host_triangles.begin()))
-		);
+	auto host_begin = make_tuple(host_x.begin(), host_y.begin(), host_z.begin(), host_depth.begin(), host_triangles.begin());
+	copy(make_zip_iterator(screen_begin), make_zip_iterator(screen_end), make_zip_iterator(host_begin));
 
-	auto factor = 255 / std_triangles_a.size();
+	//auto factor = 255 / std_triangles_a.size();
 	for (int i = 0; i < size; i++) {
-		image[i * 3 + 0] = (unsigned char)((host_triangles[i] + 1) * factor);
-		image[i * 3 + 1] = (unsigned char)((host_triangles[i] + 1) * factor);
-		image[i * 3 + 2] = (unsigned char)((host_triangles[i] + 1) * factor);
+		image[i * 3 + 0] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
+		image[i * 3 + 1] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
+		image[i * 3 + 2] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
 	}
+	//for (int i = 0; i < size; i++) {
+	//	image[i * 3 + 0] = (unsigned char)((host_x[i]) * 255);
+	//	image[i * 3 + 1] = (unsigned char)((host_y[i]) * 255);
+	//	image[i * 3 + 2] = (unsigned char)((host_z[i]) * 255);
+	//}
 }
 
 // Function prototypes
@@ -125,6 +223,7 @@ int main() {
 
 	// Set the required callback functions
 	glfwSetKeyCallback(window, key_callback);
+
 
 	// Set this to true so GLEW knows to use a modern approach to retrieving function pointers and extensions
 	glewExperimental = GL_TRUE;
@@ -193,11 +292,12 @@ int main() {
 	int heights = HEIGHT;
 	unsigned char* image = new unsigned char[widths*heights * 3];
 
-	generate_image2(image);
-	generate_image2(image);
-	generate_image2(image);
-	generate_image2(image);
-	generate_image2(image);
+	auto scene = generate_cosine_quad();
+	generate_image2(image, scene);
+	//generate_image2(image, scene);
+	//generate_image2(image, scene);
+	//generate_image2(image, scene);
+	//generate_image2(image, scene);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widths, heights, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 	//glGenerateMipmap(GL_TEXTURE_2D);
