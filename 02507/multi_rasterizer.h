@@ -35,7 +35,7 @@ namespace kp {
 			_triangles_b(triangles_b),
 			_triangles_c(triangles_c){}
 
-		__host__ __device__ float3 operator()(const float2 position) const {
+		__host__ __device__ tuple<float, float, float, unsigned char> operator()(const float2 position) const {
 			for (unsigned int i = 0; i < _n_triangles; i++) {
 				auto idx_a = _triangles_a[i];
 				auto idx_b = _triangles_b[i];
@@ -47,11 +47,11 @@ namespace kp {
 				area_rasterizer rasterize(t, 1.0f / t.signed_area());
 				float3 value = rasterize(position);
 				if (x(value) + y(value) + z(value) > 0.0001f) {
-					return value;
+					return make_tuple(x(value), y(value), z(value), (unsigned char)i + 1);
 				}
 			}
 
-			return make_tuple(0.0f, 0.0f, 0.0f);
+			return make_tuple(0.0f, 0.0f, 0.0f, 0);
 		}
 	};
 }

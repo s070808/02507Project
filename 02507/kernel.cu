@@ -38,7 +38,7 @@ struct rasterize_functor {
 		: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
 
 	__host__ __device__
-		kp::float3 operator()(int i) {
+		tuple<float, float, float, unsigned char> operator()(int i) {
 			return rasterizer(index_to_clipspace(i));
 		}
 };
@@ -46,6 +46,7 @@ struct rasterize_functor {
 __host__ void generate_image2(unsigned char* image) {
 	auto size = WIDTH * HEIGHT;
 	device_vector<float> screen_x(size), screen_y(size), screen_z(size);
+	device_vector<unsigned char> screen_triangles(size); // Allows for up to 256 triangles
 	counting_iterator<int> begin(0);
 	counting_iterator<int> end(size);
 	device_vector<int> indices(size);
@@ -78,7 +79,7 @@ __host__ void generate_image2(unsigned char* image) {
 		triangles_c.data());
 
 	transform(indices.begin(), indices.end(),
-		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
+		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangles.begin())),
 		rasterize_functor(index_to_clipspace, rasterizer));
 
 	auto t_end = std::clock();
@@ -86,16 +87,18 @@ __host__ void generate_image2(unsigned char* image) {
 	std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms" << std::endl;
 
 	host_vector<float> host_x(size), host_y(size), host_z(size);
+	host_vector<unsigned char> host_triangles(size);
 	copy(
-		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
-		make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end())),
-		make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin()))
+		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangles.begin())),
+		make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end(), screen_triangles.end())),
+		make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin(), host_triangles.begin()))
 		);
 
+	auto factor = 255 / std_triangles_a.size();
 	for (int i = 0; i < size; i++) {
-		image[i * 3 + 0] = (unsigned char)(host_x[i] * 255);
-		image[i * 3 + 1] = (unsigned char)(host_y[i] * 255);
-		image[i * 3 + 2] = (unsigned char)(host_z[i] * 255);
+		image[i * 3 + 0] = (unsigned char)(host_triangles[i] * factor);
+		image[i * 3 + 1] = (unsigned char)(host_triangles[i] * factor);
+		image[i * 3 + 2] = (unsigned char)(host_triangles[i] * factor);
 	}
 }
 
@@ -114,7 +117,7 @@ int main() {
 	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
 	// Create a GLFWwindow object that we can use for GLFW's functions
-	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "LearnOpenGL", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "02507 CUDA Rasterizer", nullptr, nullptr);
 	glfwMakeContextCurrent(window);
 
 	// Set the required callback functions
