@@ -36,7 +36,7 @@ namespace kp {
 			_triangles_c(triangles_c){}
 
 		__host__ __device__ float3 operator()(const float2 position) const {
-			for (auto i = 0; i < _n_triangles; i++) {
+			for (unsigned int i = 0; i < _n_triangles; i++) {
 				auto idx_a = _triangles_a[i];
 				auto idx_b = _triangles_b[i];
 				auto idx_c = _triangles_c[i];

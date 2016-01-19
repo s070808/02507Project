@@ -92,10 +92,10 @@ __host__ void generate_image2(unsigned char* image) {
 		make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin()))
 		);
 
-	for (unsigned int i = 0; i < size; i++) {
-		image[i * 3 + 0] = host_x[i] * 255;
-		image[i * 3 + 1] = host_y[i] * 255;
-		image[i * 3 + 2] = host_z[i] * 255;
+	for (int i = 0; i < size; i++) {
+		image[i * 3 + 0] = (unsigned char)(host_x[i] * 255);
+		image[i * 3 + 1] = (unsigned char)(host_y[i] * 255);
+		image[i * 3 + 2] = (unsigned char)(host_z[i] * 255);
 	}
 }
 
