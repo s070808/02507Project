@@ -30,6 +30,12 @@ const int N = 512;
 const int WIDTH = N, HEIGHT = N;
 
 namespace kp {
+	void print_time(std::string label, clock_t begin, clock_t end) {
+		auto elapsed = double(end - begin);
+		auto elapsed_secs = elapsed / CLOCKS_PER_SEC;
+		std::cout << label << ": " << elapsed_secs*1000.0 << "ms  (" << elapsed << " clocks)" << std::endl;
+	}
+
 	struct rasterize_functor {
 		const kp::index_to_clipspace_functor index_to_clipspace;
 		const kp::multi_rasterizer rasterizer;
@@ -37,24 +43,27 @@ namespace kp {
 		__host__ __device__ rasterize_functor(const kp::index_to_clipspace_functor index_to_clipspace, const kp::multi_rasterizer rasterizer)
 			: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
 
-		__host__ __device__ tuple<float, float, float, uint> operator()(int i) {
+		__host__ __device__ tuple<float, float, float> operator()(int i) {
 			return rasterizer(index_to_clipspace(i));
 		}
 	};
 
 	__host__ void generate_image2(unsigned char* image) {
+		clock_t t_begin;
+
+		std::cout << "Starting" << std::endl;
 		auto size = WIDTH * HEIGHT;
 
 		// To be used later for optimization
 		counting_iterator<int> begin(0);
 		counting_iterator<int> end(size);
 
+		t_begin = std::clock();
+
 		device_vector<float> screen_x(size), screen_y(size), screen_z(size);
-		device_vector<uint> screen_triangle(size);
+		device_vector<unsigned char> screen_triangle(size);
 		device_vector<int> indices(size);
 		sequence(indices.begin(), indices.end());
-
-		auto t_begin = std::clock();
 
 		std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f, 0.0f, -1.0f, 1.0f };
 		std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f, -1.0f, 0.0f, 0.0f };
@@ -81,26 +90,29 @@ namespace kp {
 			triangles_c.data());
 
 		transform(indices.begin(), indices.end(),
-			make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangle.begin())),
+			make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
 			rasterize_functor(index_to_clipspace, rasterizer));
 
-		auto t_end = std::clock();
-		auto elapsed_secs = double(t_end - t_begin) / CLOCKS_PER_SEC;
-		std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms  (" << (t_end - t_begin) << " clocks)" << std::endl;
+		print_time("Rasterize", t_begin, std::clock());
+
+		t_begin = std::clock();
 
 		host_vector<float> host_x(size), host_y(size), host_z(size);
-		host_vector<uint> host_triangle(size);
+		host_vector<unsigned char> host_triangle(size);
 		copy(
-			make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangle.begin())),
-			make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end(), screen_triangle.end())),
-			make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin(), host_triangle.begin()))
+			make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin())),
+			make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end())),
+			make_zip_iterator(make_tuple(host_x.begin(), host_y.begin(), host_z.begin()))
 			);
 
+		auto factor = 255;
 		for (int i = 0; i < size; i++) {
-			image[i * 3 + 0] = (unsigned char)(screen_triangle[i] * 63);
-			image[i * 3 + 1] = (unsigned char)(screen_triangle[i] * 63);
-			image[i * 3 + 2] = (unsigned char)(screen_triangle[i] * 63);
+			image[i * 3 + 0] = (unsigned char)(screen_x[i] * factor);
+			image[i * 3 + 1] = (unsigned char)(screen_y[i] * factor);
+			image[i * 3 + 2] = (unsigned char)(screen_z[i] * factor);
 		}
+
+		print_time("Copy", t_begin, std::clock());
 	}
 }
 
