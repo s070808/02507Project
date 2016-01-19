@@ -26,7 +26,7 @@
 
 using namespace thrust;
 
-const int N = 1024;
+const int N = 512;
 const int WIDTH = N, HEIGHT = N;
 
 struct rasterize_functor {
@@ -56,6 +56,7 @@ __host__ void generate_image2(unsigned char* image) {
 
 	std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f, 0.0f, -1.0f, 1.0f };
 	std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f, -1.0f, 0.0f, 0.0f };
+	std::vector<float> std_vertices_z{ 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f};
 
 	// Indices for corners A, B and C of triangles to be rasterized
 	std::vector<unsigned int> std_triangles_a{ 5, 0, 2, 0 };
@@ -65,6 +66,7 @@ __host__ void generate_image2(unsigned char* image) {
 	// Copy vertices and triangles to GPU
 	device_vector<float> vertices_x = std_vertices_x;
 	device_vector<float> vertices_y = std_vertices_y;
+	device_vector<float> vertices_z = std_vertices_z;
 	device_vector<unsigned int> triangles_a = std_triangles_a;
 	device_vector<unsigned int> triangles_b = std_triangles_b;
 	device_vector<unsigned int> triangles_c = std_triangles_c;
@@ -74,6 +76,7 @@ __host__ void generate_image2(unsigned char* image) {
 		triangles_a.size(),
 		vertices_x.data(),
 		vertices_y.data(),
+		vertices_z.data(),
 		triangles_a.data(),
 		triangles_b.data(),
 		triangles_c.data());

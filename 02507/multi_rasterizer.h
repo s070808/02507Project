@@ -17,6 +17,7 @@ namespace kp {
 		const unsigned int _n_triangles;
 		const device_ptr<float> _vertices_x;
 		const device_ptr<float> _vertices_y;
+		const device_ptr<float> _vertices_z;
 		const device_ptr<unsigned int> _triangles_a;
 		const device_ptr<unsigned int> _triangles_b;
 		const device_ptr<unsigned int> _triangles_c;
@@ -25,33 +26,48 @@ namespace kp {
 			const unsigned int n_triangles,
 			const device_ptr<float> vertices_x,
 			const device_ptr<float> vertices_y,
+			const device_ptr<float> vertices_z,
 			const device_ptr<unsigned int> triangles_a,
 			const device_ptr<unsigned int> triangles_b,
 			const device_ptr<unsigned int> triangles_c) :
 			_n_triangles(n_triangles),
 			_vertices_x(vertices_x),
 			_vertices_y(vertices_y),
+			_vertices_z(vertices_z),
 			_triangles_a(triangles_a),
 			_triangles_b(triangles_b),
 			_triangles_c(triangles_c){}
 
 		__host__ __device__ tuple<float, float, float, unsigned char> operator()(const float2 position) const {
+			float maxDepth = -1.1f;
+			auto result = make_tuple(0.0f, 0.0f, 0.0f, 0);
 			for (unsigned int i = 0; i < _n_triangles; i++) {
 				auto idx_a = _triangles_a[i];
 				auto idx_b = _triangles_b[i];
 				auto idx_c = _triangles_c[i];
+
 				auto vertex_a = make_tuple(_vertices_x[idx_a], _vertices_y[idx_a]);
 				auto vertex_b = make_tuple(_vertices_x[idx_b], _vertices_y[idx_b]);
 				auto vertex_c = make_tuple(_vertices_x[idx_c], _vertices_y[idx_c]);
+
 				triangle t(vertex_a, vertex_b, vertex_c);
 				area_rasterizer rasterize(t, 1.0f / t.signed_area());
-				float3 value = rasterize(position);
-				if (x(value) + y(value) + z(value) > 0.0001f) {
-					return make_tuple(x(value), y(value), z(value), (unsigned char)i + 1);
+				float3 barycentric = rasterize(position);
+
+				if (x(barycentric) + y(barycentric) + z(barycentric) > 0.0001f) {
+					// We are inside triangle, perform depth test
+					auto z_a = _vertices_z[idx_a];
+					auto z_b = _vertices_z[idx_b];
+					auto z_c = _vertices_z[idx_c];
+					auto depth = x(barycentric)*z_a + y(barycentric)*z_b + z(barycentric)*z_c;
+					if (depth > maxDepth) {
+						maxDepth = depth;
+						result = make_tuple(x(barycentric), y(barycentric), z(barycentric), (unsigned char)i + 1);
+					}
 				}
 			}
 
-			return make_tuple(0.0f, 0.0f, 0.0f, 0);
+			return result;
 		}
 	};
 }

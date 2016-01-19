@@ -16,68 +16,68 @@ namespace kp {
 
 #pragma region x getters
 	template<typename T>
-	__device__ __host__ T x(const tuple<T, T> v) {
+	__device__ __host__ T inline x(const tuple<T, T> v) {
 		return get<0>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T x(const tuple<T, T, T> v) {
+	__device__ __host__ T inline x(const tuple<T, T, T> v) {
 		return get<0>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T x(const tuple<T, T, T, T> v) {
+	__device__ __host__ T inline x(const tuple<T, T, T, T> v) {
 		return get<0>(v);
 	}
 #pragma endregion
 
 #pragma region y getters
 	template<typename T>
-	__device__ __host__ T y(const tuple<T, T> v) {
+	__device__ __host__ T inline y(const tuple<T, T> v) {
 		return get<1>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T y(const tuple<T, T, T> v) {
+	__device__ __host__ T inline y(const tuple<T, T, T> v) {
 		return get<1>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T y(const tuple<T, T, T, T> v) {
+	__device__ __host__ T inline y(const tuple<T, T, T, T> v) {
 		return get<1>(v);
 	}
 #pragma endregion
 
 #pragma region z getters
 	template<typename T>
-	__device__ __host__ T z(const tuple<T, T> v) {
+	__device__ __host__ T inline z(const tuple<T, T> v) {
 		return get<2>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T z(const tuple<T, T, T> v) {
+	__device__ __host__ T inline z(const tuple<T, T, T> v) {
 		return get<2>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T z(const tuple<T, T, T, T> v) {
+	__device__ __host__ T inline z(const tuple<T, T, T, T> v) {
 		return get<2>(v);
 	}
 #pragma endregion
 
 #pragma region w getters
 	template<typename T>
-	__device__ __host__ T w(const tuple<T, T> v) {
+	__device__ __host__ T inline w(const tuple<T, T> v) {
 		return get<3>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T w(const tuple<T, T, T> v) {
+	__device__ __host__ T inline w(const tuple<T, T, T> v) {
 		return get<3>(v);
 	}
 
 	template<typename T>
-	__device__ __host__ T w(const tuple<T, T, T, T> v) {
+	__device__ __host__ T inline w(const tuple<T, T, T, T> v) {
 		return get<3>(v);
 	}
 #pragma endregion
