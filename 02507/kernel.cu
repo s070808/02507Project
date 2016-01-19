@@ -38,7 +38,7 @@ struct rasterize_functor {
 		: index_to_clipspace(index_to_clipspace), rasterizer(rasterizer) {}
 
 	__host__ __device__
-		tuple<float, float, float, unsigned char> operator()(int i) {
+		tuple<float, float, float, int> operator()(int i) {
 			return rasterizer(index_to_clipspace(i));
 		}
 };
@@ -46,7 +46,7 @@ struct rasterize_functor {
 __host__ void generate_image2(unsigned char* image) {
 	auto size = WIDTH * HEIGHT;
 	device_vector<float> screen_x(size), screen_y(size), screen_z(size);
-	device_vector<unsigned char> screen_triangles(size); // Allows for up to 256 triangles
+	device_vector<int> screen_triangles(size); // Allows for up to 256 triangles
 	counting_iterator<int> begin(0);
 	counting_iterator<int> end(size);
 	device_vector<int> indices(size);
@@ -90,7 +90,7 @@ __host__ void generate_image2(unsigned char* image) {
 	std::cout << "Time elapsed: " << elapsed_secs*1000.0 << "ms" << std::endl;
 
 	host_vector<float> host_x(size), host_y(size), host_z(size);
-	host_vector<unsigned char> host_triangles(size);
+	host_vector<int> host_triangles(size);
 	copy(
 		make_zip_iterator(make_tuple(screen_x.begin(), screen_y.begin(), screen_z.begin(), screen_triangles.begin())),
 		make_zip_iterator(make_tuple(screen_x.end(), screen_y.end(), screen_z.end(), screen_triangles.end())),
@@ -99,9 +99,9 @@ __host__ void generate_image2(unsigned char* image) {
 
 	auto factor = 255 / std_triangles_a.size();
 	for (int i = 0; i < size; i++) {
-		image[i * 3 + 0] = (unsigned char)(host_triangles[i] * factor);
-		image[i * 3 + 1] = (unsigned char)(host_triangles[i] * factor);
-		image[i * 3 + 2] = (unsigned char)(host_triangles[i] * factor);
+		image[i * 3 + 0] = (unsigned char)((host_triangles[i] + 1) * factor);
+		image[i * 3 + 1] = (unsigned char)((host_triangles[i] + 1) * factor);
+		image[i * 3 + 2] = (unsigned char)((host_triangles[i] + 1) * factor);
 	}
 }
 
