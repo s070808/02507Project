@@ -69,6 +69,14 @@ namespace kp {
 	}
 #pragma endregion
 
+	__device__ __host__ float2 operator-(float2 u, float2 v) {
+		return make_tuple(x(u) - x(v), y(u) - y(v));
+	}
+
+	__device__ __host__ float2 operator/(float2 u, float2 v) {
+		return make_tuple(x(u) / x(v), y(u) / y(v));
+	}
+
 	__device__ __host__ float3 operator-(float3 u, float3 v) {
 		return make_tuple(x(u) - x(v), y(u) - y(v), z(u) - z(v));
 	}

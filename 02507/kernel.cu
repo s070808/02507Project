@@ -6,6 +6,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/sequence.h>
+#include <thrust/copy.h>
 
 #include <vector>
 #include <iostream>
@@ -63,8 +64,8 @@ float quadf(float value, float max) {
 std_scene generate_cosine_quad() {
 	std_scene scene;
 
-	int imax = 3;//91;
-	int jmax = 3;//91;
+	int imax = 60;//91;
+	int jmax = 60;//91;
 
 	for (int i = 0; i < imax; i++) {
 		for (int j = 0; j < jmax; j++) {
@@ -134,6 +135,43 @@ std_scene load_scene(std::string inputfile) {
 	}
 
 	return scene;
+}
+
+void generate_image3(unsigned int n, unsigned int m, std_scene scene) {
+	device_vector<float> vertices_x = scene.vertices_x;
+	device_vector<float> vertices_y = scene.vertices_y;
+	device_vector<float> vertices_z = scene.vertices_z;
+	device_vector<unsigned int> triangles_a = scene.triangles_a;
+	device_vector<unsigned int> triangles_b = scene.triangles_b;
+	device_vector<unsigned int> triangles_c = scene.triangles_c;
+
+	device_ptr<float> vertices_x_ptr = vertices_x.data();
+	device_ptr<float> vertices_y_ptr = vertices_y.data();
+	device_ptr<float> vertices_z_ptr = vertices_z.data();
+	device_ptr<unsigned int> triangles_a_ptr = triangles_a.data();
+	device_ptr<unsigned int> triangles_b_ptr = triangles_b.data();
+	device_ptr<unsigned int> triangles_c_ptr = triangles_c.data();
+
+	std::vector<kp::bounding_box_in_coords> bb_functors = kp::create_bb_functors(n, m,
+		vertices_x_ptr,
+		vertices_y_ptr,
+		triangles_a_ptr,
+		triangles_b_ptr,
+		triangles_c_ptr);
+
+	std::vector<device_vector<float>> triangle_ids(n*m);
+	device_vector<unsigned int> indices(scene.triangles_a.size());
+	sequence(indices.begin(), indices.end());
+
+	for (unsigned int i = 0; i < n*m; i++) {
+		triangle_ids[i].resize(n*m);
+		copy_if(indices.begin(), indices.end(), triangle_ids[i].begin(), bb_functors[i]);
+	}
+
+	if (cudaDeviceSynchronize() != cudaSuccess) {
+		std::cout << "FAIL!" << std::endl;
+		return;
+	}
 }
 
 void generate_image2(unsigned char* image, std_scene scene) {
@@ -302,11 +340,12 @@ int main() {
 
 	auto scene = generate_cosine_quad();
 	// auto scene = load_scene("scenes/rock1.obj");
+	generate_image3(4, 4, scene);
 	generate_image2(image, scene);
-	generate_image2(image, scene);
-	generate_image2(image, scene);
-	generate_image2(image, scene);
-	generate_image2(image, scene);
+	//generate_image2(image, scene);
+	//generate_image2(image, scene);
+	//generate_image2(image, scene);
+	//generate_image2(image, scene);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widths, heights, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 	//glGenerateMipmap(GL_TEXTURE_2D);
