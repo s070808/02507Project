@@ -68,4 +68,12 @@ namespace kp {
 		return get<3>(v);
 	}
 #pragma endregion
+
+	__device__ __host__ float3 operator-(float3 u, float3 v) {
+		return make_tuple(x(u) - x(v), y(u) - y(v), z(u) - z(v));
+	}
+
+	__device__ __host__ float3 operator/(float3 u, float3 v) {
+		return make_tuple(x(u) / x(v), y(u) / y(v), z(u) / z(v));
+	}
 }
