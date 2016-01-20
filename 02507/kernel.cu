@@ -63,8 +63,8 @@ float quadf(float value, float max) {
 std_scene generate_cosine_quad() {
 	std_scene scene;
 
-	int imax = 91;
-	int jmax = 91;
+	int imax = 60;//91;
+	int jmax = 60;//91;
 
 	for (int i = 0; i < imax; i++) {
 		for (int j = 0; j < jmax; j++) {
@@ -89,8 +89,7 @@ std_scene generate_cosine_quad() {
 	return scene;
 }
 
-std_scene load_scene() {
-	std::string inputfile = "scenes/cube.obj";
+std_scene load_scene(std::string inputfile) {
 	std::string err;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
@@ -104,7 +103,16 @@ std_scene load_scene() {
 	std::cout << "# of materials : " << materials.size() << std::endl;
 
 	std_scene scene;
-	auto max_vertex_value = *std::max_element(shapes[0].mesh.positions.begin(), shapes[0].mesh.positions.end());
+	float max_vertex_value = 1.0f;
+
+	for (auto shape : shapes)
+	for (auto position : shape.mesh.positions) {
+		auto abs_pos = std::fabsf(position);
+		if (abs_pos > max_vertex_value) {
+			max_vertex_value = abs_pos;
+		}
+	}
+
 	auto vertex_factor = 1.f / max_vertex_value;
 	std::cout << "Max vertex value :" << max_vertex_value << std::endl;
 
@@ -119,9 +127,9 @@ std_scene load_scene() {
 		}
 
 		for (size_t j = 0; j < shape.mesh.positions.size(); j += 3) {
-			scene.vertices_x.push_back(shape.mesh.positions[j + 0] / 3/* * vertex_factor - 0.5f*/);
-			scene.vertices_y.push_back(shape.mesh.positions[j + 1] / 3/* * vertex_factor - 0.5f*/);
-			scene.vertices_z.push_back(shape.mesh.positions[j + 2] / 3/* * vertex_factor - 0.5f*/);
+			scene.vertices_x.push_back(shape.mesh.positions[j + 0] * vertex_factor - 0.5f);
+			scene.vertices_y.push_back(shape.mesh.positions[j + 1] * vertex_factor - 0.5f);
+			scene.vertices_z.push_back(shape.mesh.positions[j + 2] * vertex_factor - 0.5f);
 		}
 	}
 
@@ -140,15 +148,6 @@ void generate_image2(unsigned char* image, std_scene scene) {
 
 	auto t_begin = std::clock();
 
-	//std::vector<float> std_vertices_x{ -1.0f, 0.66f, 0.0f, 1.0f, -0.75f, 0.0f, -1.0f, 1.0f };
-	//std::vector<float> std_vertices_y{ -0.75f, -1.0f, 1.0f, 1.0f, 0.75f, -1.0f, 0.0f, 0.0f };
-	//std::vector<float> std_vertices_z{ 0.5f, 0.5f, -0.25f, 0.5f, -0.75f, -0.75f, -0.55f, 1.0f };
-
-	//// Indices for corners A, B and C of triangles to be rasterized
-	//std::vector<unsigned int> std_triangles_a{ 5, 0, 2, 0 };
-	//std::vector<unsigned int> std_triangles_b{ 7, 1, 1, 2 };
-	//std::vector<unsigned int> std_triangles_c{ 6, 2, 3, 4 };
-
 	// Copy vertices and triangles to GPU
 	device_vector<float> vertices_x = scene.vertices_x;
 	device_vector<float> vertices_y = scene.vertices_y;
@@ -156,6 +155,11 @@ void generate_image2(unsigned char* image, std_scene scene) {
 	device_vector<unsigned int> triangles_a = scene.triangles_a;
 	device_vector<unsigned int> triangles_b = scene.triangles_b;
 	device_vector<unsigned int> triangles_c = scene.triangles_c;
+
+	if (cudaDeviceSynchronize() != cudaSuccess) {
+		std::cout << "Not enough memory!" << std::endl;
+		return;
+	}
 
 	//for (size_t i = 0; i < scene.vertices_x.size(); i++) {
 	//	std::cout << "x:\t" << scene.vertices_x[i] << "y:\t" << scene.vertices_y[i] << "z:\t" << scene.vertices_z[i] << std::endl;
@@ -179,7 +183,11 @@ void generate_image2(unsigned char* image, std_scene scene) {
 	auto screen_end = make_tuple(screen_x.end(), screen_y.end(), screen_z.end(), screen_depth.end(), screen_triangles.end());
 
 	transform(indices.begin(), indices.end(), make_zip_iterator(screen_begin), rasterize_functor(index_to_clipspace, rasterizer));
-	cudaDeviceSynchronize();
+
+	if (cudaDeviceSynchronize() != cudaSuccess) {
+		std::cout << "Not enough memory!" << std::endl;
+		return;
+	}
 
 	auto t_end = std::clock();
 	auto elapsed_secs = double(t_end - t_begin) / CLOCKS_PER_SEC;
@@ -292,12 +300,13 @@ int main() {
 	int heights = HEIGHT;
 	unsigned char* image = new unsigned char[widths*heights * 3];
 
-	auto scene = generate_cosine_quad();
+	// auto scene = generate_cosine_quad();
+	auto scene = load_scene("scenes/rock1.obj");
 	generate_image2(image, scene);
-	//generate_image2(image, scene);
-	//generate_image2(image, scene);
-	//generate_image2(image, scene);
-	//generate_image2(image, scene);
+	generate_image2(image, scene);
+	generate_image2(image, scene);
+	generate_image2(image, scene);
+	generate_image2(image, scene);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, widths, heights, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
 	//glGenerateMipmap(GL_TEXTURE_2D);

@@ -55,7 +55,7 @@ namespace kp {
 				auto vertex_c = make_tuple(_vertices_x[idx_c], _vertices_y[idx_c]);
 
 				triangle t(vertex_a, vertex_b, vertex_c);
-				area_rasterizer rasterize(t, 1.0f / t.signed_area());
+				area_rasterizer3 rasterize(t, 1.0f / t.signed_area());
 				float3 barycentric = rasterize(position);
 
 				if (x(barycentric) + y(barycentric) + z(barycentric) > 10e-6f) {

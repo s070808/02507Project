@@ -49,10 +49,6 @@ namespace kp {
 #pragma endregion
 
 #pragma region z getters
-	template<typename T>
-	__device__ __host__ T inline z(const tuple<T, T> v) {
-		return get<2>(v);
-	}
 
 	template<typename T>
 	__device__ __host__ T inline z(const tuple<T, T, T> v) {
@@ -66,15 +62,6 @@ namespace kp {
 #pragma endregion
 
 #pragma region w getters
-	template<typename T>
-	__device__ __host__ T inline w(const tuple<T, T> v) {
-		return get<3>(v);
-	}
-
-	template<typename T>
-	__device__ __host__ T inline w(const tuple<T, T, T> v) {
-		return get<3>(v);
-	}
 
 	template<typename T>
 	__device__ __host__ T inline w(const tuple<T, T, T, T> v) {
