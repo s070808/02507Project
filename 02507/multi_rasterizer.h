@@ -8,6 +8,7 @@
 #include "area_rasterizer.h"
 #include "matrix.h"
 #include "triangle.h"
+#include "rasterize.h"
 
 #pragma once
 namespace kp {
@@ -54,9 +55,9 @@ namespace kp {
 				auto vertex_b = make_tuple(_vertices_x[idx_b], _vertices_y[idx_b]);
 				auto vertex_c = make_tuple(_vertices_x[idx_c], _vertices_y[idx_c]);
 
-				triangle t(vertex_a, vertex_b, vertex_c);
-				area_rasterizer rasterize(t, 1.0f / t.signed_area());
-				float3 barycentric = rasterize(position);
+				// triangle t(vertex_a, vertex_b, vertex_c);
+				// area_rasterizer rasterize(t, 1.0f / t.signed_area());
+				float3 barycentric = rasterize_triangle(position, vertex_a, vertex_b, vertex_c);
 
 				if (x(barycentric) + y(barycentric) + z(barycentric) > 10e-6f) {
 					// We are inside triangle
