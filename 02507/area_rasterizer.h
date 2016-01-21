@@ -34,6 +34,8 @@ namespace kp {
 		}
 	};
 
+	// Alternative rasterizers that turned out to not give performance increase
+
 	class area_rasterizer2
 	{
 		const float _inverse_area;

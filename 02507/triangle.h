@@ -2,14 +2,25 @@
 #include "device_launch_parameters.h"
 #include <cuda.h>
 
+#include <vector>
 #include <cmath>
 #include <math.h>
+
+#include <thrust/device_ptr.h>
 
 #include "matrix.h"
 
 #pragma once
 namespace kp {
 	using namespace thrust;
+
+	__device__ __host__ float signed_area(const float2 &a, const float2 &b, const float2 &c) {
+		return (
+			x(a) * (y(b) - y(c)) +
+			x(b) * (y(c) - y(a)) +
+			x(c) * (y(a) - y(b))
+			) * 0.5f;
+	}
 
 	class triangle
 	{
@@ -22,21 +33,11 @@ namespace kp {
 			: a(a), b(b), c(c) {}
 
 		__device__ __host__ float signed_area() const {
-			return (
-				x(a) * (y(b) - y(c)) +
-				x(b) * (y(c) - y(a)) +
-				x(c) * (y(a) - y(b))
-				) * 0.5f;
+			return kp::signed_area(a, b, c);
 		}
 	};
 
-	__device__ __host__ float signed_area(const float2 &a, const float2 &b, const float2 &c) {
-		return (
-			x(a) * (y(b) - y(c)) +
-			x(b) * (y(c) - y(a)) +
-			x(c) * (y(a) - y(b))
-			) * 0.5f;
-	}
+	// CODE BELOW IS FROM ATTEMPT OF IMPLEMENTING TILE-BASED RENDERING
 
 	struct bounding_box_in_coords {
 		const device_ptr<float> vertices_x;
