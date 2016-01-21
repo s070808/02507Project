@@ -64,8 +64,8 @@ float quadf(float value, float max) {
 std_scene generate_cosine_quad() {
 	std_scene scene;
 
-	int imax = 60;//91;
-	int jmax = 60;//91;
+	int imax = 11;//91;
+	int jmax = 11;//91;
 
 	for (int i = 0; i < imax; i++) {
 		for (int j = 0; j < jmax; j++) {
@@ -237,16 +237,16 @@ void generate_image2(unsigned char* image, std_scene scene) {
 	copy(make_zip_iterator(screen_begin), make_zip_iterator(screen_end), make_zip_iterator(host_begin));
 
 	//auto factor = 255 / std_triangles_a.size();
-	//for (int i = 0; i < size; i++) {
-	//	image[i * 3 + 0] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
-	//	image[i * 3 + 1] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
-	//	image[i * 3 + 2] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
-	//}
 	for (int i = 0; i < size; i++) {
-		image[i * 3 + 0] = (unsigned char)((host_x[i]) * 255);
-		image[i * 3 + 1] = (unsigned char)((host_y[i]) * 255);
-		image[i * 3 + 2] = (unsigned char)((host_z[i]) * 255);
+		image[i * 3 + 0] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
+		image[i * 3 + 1] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
+		image[i * 3 + 2] = (unsigned char)((host_depth[i] * 0.5f + 0.5f) * 255);
 	}
+	//for (int i = 0; i < size; i++) {
+	//	image[i * 3 + 0] = (unsigned char)((host_x[i]) * 255);
+	//	image[i * 3 + 1] = (unsigned char)((host_y[i]) * 255);
+	//	image[i * 3 + 2] = (unsigned char)((host_z[i]) * 255);
+	//}
 }
 
 // Function prototypes
